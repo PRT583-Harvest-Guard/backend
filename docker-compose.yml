@@ -1,0 +1,28 @@
+
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - DEBUG=1
+      - DJANGO_SETTINGS_MODULE=backend.settings
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/backend
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=backend
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+volumes:
+  postgres_data: 
