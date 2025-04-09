@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # apps
     "accounts",
+    "farm",
+    "surveillance",
     # packages
     "rest_framework",
     "rest_framework.authtoken",
