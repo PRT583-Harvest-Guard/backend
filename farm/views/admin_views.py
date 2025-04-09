@@ -355,16 +355,23 @@ class SamplingEventViewSet(mixins.ListModelMixin,
                 event_date = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
             except ValueError:
                 event_date = datetime.now()
+
+        # Check for existing events
+        existing_events = plan.events.all()
+        existing_block_ids = set(event.blockDetails.id for event in existing_events)
         
-        # Create sampling events for each block
-        if len(plan.events) == len(blocks):
-            return Response({"detail": "Sampling events already created for all blocks."}, status=status.HTTP_200_OK)
-            
-        if len(plan.events) > len(blocks):
-            plan_blocks = set([block.blockDetails.id for block in plan.events])
-            blocks = blocks.exclude(id__in=plan_blocks)
+        # Filter out blocks that already have events
+        blocks_to_process = blocks.exclude(id__in=existing_block_ids)
+        
+        if not blocks_to_process.exists():
+            return Response(
+                SamplingEventAdminSerializer(existing_events, many=True).data,
+                status=status.HTTP_200_OK
+            )
+        
+        # Create sampling events for remaining blocks
         created_events = []
-        for block in blocks:
+        for block in blocks_to_process:
             # Calculate sample size for this block
             sample_size = calculate_sample_size(block, plan)
             
@@ -384,5 +391,5 @@ class SamplingEventViewSet(mixins.ListModelMixin,
             created_events.append(event)
         
         # Return the first created event (or you could return all of them)
-        serializer.instance = created_events[0]
+        serializer.instance = created_events
         return Response(serializer.data, status=status.HTTP_201_CREATED)
