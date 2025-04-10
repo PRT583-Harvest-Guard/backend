@@ -6,7 +6,7 @@ from farm.serializers.admin_serializers import FarmAdminSerializer, BlockAdminSe
 from farm.models import Farm, Block
 from surveillance.models import Pest, SurveillancePlan, SamplingEvent, Observation
 from rest_framework.decorators import action
-from surveillance.serializers.admin_serializers import SurveillancePlanAdminSerializer, SurveillanceCreatePlanAdminSerializer, SamplingEventAdminSerializer, PestAdminSerializer, SamplingEventUpdateAdminSerializer
+from surveillance.serializers.admin_serializers import SurveillancePlanAdminSerializer, SurveillanceCreatePlanAdminSerializer, SamplingEventAdminSerializer, PestAdminSerializer, SamplingEventUpdateAdminSerializer, ObservationAdminSerializer
 import json
 from datetime import datetime, timedelta
 import random
@@ -317,4 +317,16 @@ class SamplingEventViewSet(mixins.ListModelMixin,
         
         serializer.instance = created_events
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+
+class ObservationViewSet(mixins.ListModelMixin,
+                       mixins.CreateModelMixin,
+                       mixins.RetrieveModelMixin,
+                       mixins.UpdateModelMixin,
+                       mixins.DestroyModelMixin,
+                       viewsets.GenericViewSet):
+    permission_classes = (IsAdminUser,)
+    queryset = Observation.objects.all()
+    serializer_class = ObservationAdminSerializer
     
