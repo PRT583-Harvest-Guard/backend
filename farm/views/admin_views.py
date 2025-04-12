@@ -1,16 +1,12 @@
-from rest_framework import viewsets, mixins, status, filters, serializers
-from rest_framework.views import APIView
+from rest_framework import viewsets, mixins, status, serializers
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from farm.serializers.admin_serializers import FarmAdminSerializer, BlockAdminSerializer
 from farm.models import Farm, Block
 from surveillance.models import Pest, SurveillancePlan, SamplingEvent, Observation
-from rest_framework.decorators import action
-from surveillance.serializers.admin_serializers import SurveillancePlanAdminSerializer, SurveillanceCreatePlanAdminSerializer, SamplingEventAdminSerializer, PestAdminSerializer, SamplingEventUpdateAdminSerializer, ObservationAdminSerializer
-import json
-from datetime import datetime, timedelta
-import random
-import math
+from surveillance.serializers.admin_serializers import SurveillancePlanAdminSerializer, SurveillanceCreatePlanAdminSerializer, SamplingEventAdminSerializer, PestAdminSerializer, SamplingEventUpdateAdminSerializer, ObservationAdminSerializer, SurveillancePlanUpdateAdminSerializer
+from datetime import datetime
+
 from backend.utils import calculate_sample_size, generate_recommendations
 
 
@@ -133,6 +129,8 @@ class SurveillancePlanViewSet(mixins.ListModelMixin,
     def get_serializer_class(self):
         if self.action == 'create':
             return SurveillanceCreatePlanAdminSerializer
+        elif self.action == 'update' or self.action == 'partial_update':
+            return SurveillancePlanUpdateAdminSerializer
         return SurveillancePlanAdminSerializer
 
     def perform_create(self, serializer):
@@ -158,59 +156,6 @@ class SurveillancePlanViewSet(mixins.ListModelMixin,
                 raise serializers.ValidationError({"plan": "Plan with this ID does not exist."})
         except Farm.DoesNotExist:
             raise serializers.ValidationError({"farm": "Farm with this ID does not exist."})
-
-
-    def perform_update(self, serializer):
-        plan_id = self.request.parser_context['kwargs'].get('plan_id')
-        plan = SurveillancePlan.objects.get(id=plan_id)
-        
-        if not plan:
-            raise serializers.ValidationError({"plan": "Plan with this ID does not exist."})
-        
-        # Use the bulk update serializer
-        bulk_serializer = SamplingEventBulkUpdateAdminSerializer(data=self.request.data)
-        if not bulk_serializer.is_valid():
-            return Response(bulk_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get all blocks in the plan for validation
-        plan_blocks = plan.blocks.all()
-        block_ids = set(block.id for block in plan_blocks)
-        
-        # Track updated events
-        updated_events = []
-        
-        # Process each event update
-        for event_data in bulk_serializer.validated_data['events']:
-            event_id = event_data['id']
-            
-            try:
-                event = SamplingEvent.objects.get(id=event_id, plan=plan)
-            except SamplingEvent.DoesNotExist:
-                raise serializers.ValidationError({"id": f"Event with ID {event_id} does not exist in this plan."})
-            
-            # Validate that the block belongs to the plan if block details are being updated
-            if 'blockDetails' in event_data:
-                block_id = event_data['blockDetails'].id
-                if block_id not in block_ids:
-                    raise serializers.ValidationError({"blockDetails": f"Block {block_id} does not belong to this plan."})
-            
-            # Update the event
-            for field, value in event_data.items():
-                if field != 'id':  # Skip the ID field
-                    setattr(event, field, value)
-            
-            # Recalculate sample size and recommendations if block details changed
-            if 'blockDetails' in event_data:
-                block = event_data['blockDetails']
-                event.sampleSize = calculate_sample_size(block, plan)
-                event.recommendations = generate_recommendations(block, event.sampleSize)
-            
-            event.save()
-            updated_events.append(event)
-        
-        # Return the updated events using the original serializer
-        serializer = SamplingEventAdminSerializer(updated_events, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
     def perform_destroy(self, instance):
@@ -320,13 +265,35 @@ class SamplingEventViewSet(mixins.ListModelMixin,
 
 
 
+
 class ObservationViewSet(mixins.ListModelMixin,
-                       mixins.CreateModelMixin,
-                       mixins.RetrieveModelMixin,
-                       mixins.UpdateModelMixin,
-                       mixins.DestroyModelMixin,
-                       viewsets.GenericViewSet):
+                          mixins.CreateModelMixin,
+                          mixins.RetrieveModelMixin,
+                          mixins.UpdateModelMixin,
+                          mixins.DestroyModelMixin,
+                          viewsets.GenericViewSet):
     permission_classes = (IsAdminUser,)
     queryset = Observation.objects.all()
     serializer_class = ObservationAdminSerializer
-    
+
+
+    def perform_create(self, serializer):
+        event_id = self.request.parser_context['kwargs'].get('event_id')
+        event = SamplingEvent.objects.get(id=event_id)
+        if not event:
+            return Response({"error": "Event with this ID does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        sample_size = event.sampleSize
+        block_details = event.blockDetails
+        for i in range(sample_size):
+            observation = Observation(
+                event=event,
+                blockId=block_details.id,
+                plantId="",
+                detectionResult=False,
+                severity=0,
+                notes="",
+            )
+            observation.save()
+
+        return Response({"Message": f"{sample_size} observation list is created for block id {block_details.id}"},
+                        status=status.HTTP_201_CREATED)

@@ -17,7 +17,7 @@ class ObservationAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Observation
         fields = [
-            'id', 'event', 'blockId', 'plantId', 'detectionResult',
+            'id', 'event','plantId', 'detectionResult',
             'severity', 'notes', 'createdAt'
         ]
         read_only_fields = ['id', 'createdAt']
@@ -49,6 +49,24 @@ class SurveillancePlanAdminSerializer(serializers.ModelSerializer):
             'detectionConfidence', 'observerDetectionProb',
             'scheduleStart', 'scheduleFrequency', 'status',
             'createdAt', 'updatedAt', 'events'
+        ]
+        read_only_fields = ['id', 'createdAt', 'updatedAt']
+
+class SurveillancePlanUpdateAdminSerializer(serializers.ModelSerializer):
+    pest = serializers.PrimaryKeyRelatedField(queryset=Pest.objects.all(), required=False)
+    designPrevalence = serializers.FloatField(required=False)
+    detectionConfidence = serializers.FloatField(required=False)
+    observerDetectionProb = serializers.FloatField(required=False)
+    scheduleStart = serializers.DateTimeField(required=False)
+    scheduleFrequency = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)
+
+    class Meta:
+        model = SurveillancePlan
+        fields = [
+            'pest', 'designPrevalence',
+            'detectionConfidence', 'observerDetectionProb',
+            'scheduleStart', 'scheduleFrequency', 'status'
         ]
         read_only_fields = ['id', 'createdAt', 'updatedAt']
 
