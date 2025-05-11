@@ -19,14 +19,15 @@ from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
-from farm.urls import router as farm_router
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/profile/", include("accounts.urls"), name="profile"),
     path("api/accounts/", include("djoser.urls"), name="accounts"),
     path("api/accounts/", include("djoser.urls.jwt"), name="jwt"),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
-    path('api/', include(farm_router.urls)),
+    path('api/', include('farm.urls')),
 ]

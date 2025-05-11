@@ -1,18 +1,15 @@
+from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from farm.views.admin_views import AdminFarmViewSet, PestViewSet, BlockViewSet, SurveillancePlanViewSet, SamplingEventViewSet, ObservationViewSet
-from farm.views.client_views import ClientFarmViewSet
+from farm import views
 
 router = DefaultRouter()
+router.register(r'farms', views.FarmViewSet, basename='farm')
+router.register(r'boundary-points', views.BoundaryPointViewSet, basename='boundary-point')
+router.register(r'observation-points', views.ObservationPointViewSet, basename='observation-point')
+router.register(r'inspection-suggestions', views.InspectionSuggestionViewSet, basename='inspection-suggestion')
+router.register(r'inspection-observations', views.InspectionObservationViewSet, basename='inspection-observation')
 
-# Admin routes
-router.register(r'admin/farms', AdminFarmViewSet, basename='admin_farms')
-router.register(r'admin/farms/(?P<farm_id>[^/.]+)/blocks', BlockViewSet, basename='admin_blocks')
-router.register(r'admin/farms/(?P<farm_id>[^/.]+)/surveillance_plans', SurveillancePlanViewSet, basename='admin_surveillance_plans')
-router.register(r'admin/surveillance_plans/(?P<plan_id>[^/.]+)/sampling_events', SamplingEventViewSet, basename='admin_sampling_events')
-router.register(r'admin/sampling_events/(?P<event_id>[^/.]+)/observations', ObservationViewSet, basename='admin_observations')
-router.register(r'admin/pests', PestViewSet, basename='admin_pests')
-
-# Client routes
-router.register(r'farms', ClientFarmViewSet, basename='client_farms')
-
-urlpatterns = router.urls
+urlpatterns = [
+    path('', include(router.urls)),
+    path('sync-data/', views.SyncDataAPIView.as_view(), name='sync-data')
+]

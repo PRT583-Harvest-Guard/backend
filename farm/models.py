@@ -1,37 +1,105 @@
 from django.db import models
-import uuid
 
+# Create your models here.
+# api/models.py
+from django.db import models
+from django.conf import settings
 
 class Farm(models.Model):
-    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='farms', blank=True, null=True)
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    location_point_1 = models.CharField(max_length=255)
-    location_point_2 = models.CharField(max_length=255)
-    location_point_3 = models.CharField(max_length=255)
-    location_point_4 = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    size = models.FloatField(blank=True, null=True)
-    createdAt = models.DateTimeField(auto_now_add=True)
-    updatedAt = models.DateTimeField(auto_now=True)
+    size = models.FloatField()
+    plant_type = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='farms')
+
+class BoundaryPoint(models.Model):
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='boundary_points')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    description = models.CharField(max_length=255, blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+class ObservationPoint(models.Model):
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='observation_points')
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    observation_status = models.CharField(max_length=50, default='Nil')
+    name = models.CharField(max_length=255, blank=True, null=True)
+    segment = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    inspection_suggestion = models.ForeignKey('InspectionSuggestion', on_delete=models.SET_NULL,
+                                             related_name='observation_points', null=True, blank=True)
+    confidence_level = models.CharField(max_length=50, blank=True, null=True)
+    target_entity = models.CharField(max_length=255, blank=True, null=True)
+
+    # Sync-related fields
+    mobile_id = models.IntegerField(unique=True, null=True, blank=True)
+    last_synced = models.DateTimeField(null=True, blank=True)
+    sync_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('synced', 'Synced'),
+            ('failed', 'Failed'),
+        ],
+        default='pending'
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['farm']),
+            models.Index(fields=['mobile_id']),
+            models.Index(fields=['sync_status']),
+        ]
 
     def __str__(self):
-        return self.name
+        return f"Observation Point {self.id} - Farm {self.farm_id} - Segment {self.segment}"
 
 
-class Block(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='blocks')
-    name = models.CharField(max_length=255)
-    area = models.FloatField(blank=True, null=True)
-    location_point_1 = models.CharField(max_length=255)
-    location_point_2 = models.CharField(max_length=255)
-    location_point_3 = models.CharField(max_length=255)
-    location_point_4 = models.CharField(max_length=255)
-    totalTrees = models.IntegerField(blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-    createdAt = models.DateTimeField(auto_now_add=True)
-    updatedAt = models.DateTimeField(auto_now=True)
+class InspectionSuggestion(models.Model):
+    target_entity = models.CharField(max_length=255)
+    confidence_level = models.CharField(max_length=50)
+    property_location = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='inspection_suggestions')
+    area_size = models.FloatField()
+    density_of_plant = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='inspection_suggestions')
+
+    # Sync-related fields
+    mobile_id = models.IntegerField(unique=True, null=True, blank=True)
+    last_synced = models.DateTimeField(null=True, blank=True)
+    sync_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('synced', 'Synced'),
+            ('failed', 'Failed'),
+        ],
+        default='pending'
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['property_location']),
+            models.Index(fields=['user']),
+            models.Index(fields=['mobile_id']),
+            models.Index(fields=['sync_status']),
+        ]
 
     def __str__(self):
-        return f"{self.name} ({self.farm.name})"
+        return f"Inspection Suggestion {self.id} - {self.target_entity} - Farm {self.property_location_id}"
+
+class InspectionObservation(models.Model):
+    date = models.DateTimeField()
+    inspection = models.ForeignKey(InspectionSuggestion, on_delete=models.CASCADE, related_name='observations')
+    confidence = models.CharField(max_length=50)
+    section = models.ForeignKey(BoundaryPoint, on_delete=models.CASCADE, related_name='observations', null=True)
+    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='observations')
+    plant_per_section = models.CharField(max_length=255)
+    status = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    target_entity = models.CharField(max_length=255, blank=True, null=True)
+    severity = models.CharField(max_length=50, blank=True, null=True)
+    image = models.ImageField(upload_to='inspection_images/', blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='observations')

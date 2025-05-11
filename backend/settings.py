@@ -24,10 +24,6 @@ SECRET_KEY = "django-insecure-bvt+00d-l8(it!mql)=sxe1$01j4_k5q27=@96f-po&@n+nnh4
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -40,13 +36,14 @@ INSTALLED_APPS = [
     # apps
     "accounts",
     "farm",
-    "surveillance",
+    # "surveillance",
     # packages
     "rest_framework",
     "rest_framework.authtoken",
     "corsheaders",
     "djoser",
     "drf_spectacular",
+    'phonenumber_field',
 ]
 
 REST_FRAMEWORK = {
@@ -125,8 +122,35 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.wsgi.application"
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['192.168.0.61', '0.0.0.0', 'localhost', '192.168.0.152']
 
+# Allow requests from the mobile app
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # For development
+    "https://harvestguard.com",  # Production domain
+    "http://localhost:19006",  # React Native Expo
+]
+
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -209,3 +233,45 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'your_email@gmail.com'
 EMAIL_HOST_PASSWORD = 'your_email_password'
+
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs/django.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'api': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
