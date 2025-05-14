@@ -64,185 +64,174 @@ class FarmAdmin(admin.ModelAdmin):
         """Export farm documents as PDF."""
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import letter, landscape
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        from reportlab.platypus import (
+            SimpleDocTemplate,
+            Table,
+            TableStyle,
+            Paragraph,
+            Spacer,
+        )
         from io import BytesIO
         
         farm = Farm.objects.get(pk=object_id)
-        
-        # Create a file-like buffer to receive PDF data
+    # Create buffer and PDF document with tight margins
         buffer = BytesIO()
-        
-        # Create the PDF object, using the buffer as its "file"
-        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
-        
-        # Get the default style sheet
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(letter),
+            leftMargin=24,
+            rightMargin=24,
+            topMargin=24,
+            bottomMargin=24,
+        )
+
+        # Base stylesheet + custom paragraph styles
         styles = getSampleStyleSheet()
-        
-        # Create a list to store the flowables
+        if "SectionHeading" not in styles:
+            styles.add(ParagraphStyle(
+                name="SectionHeading",
+                parent=styles["Heading2"],
+                fontSize=14,
+                textColor=colors.HexColor("#2E4057"),
+                spaceAfter=12,
+            ))
+        if "CustomBody" not in styles:
+            styles.add(ParagraphStyle(
+                name="CustomBody",
+                parent=styles["BodyText"],
+                fontSize=10,
+                leading=12,
+                spaceAfter=6,
+            ))
+
+        def styled_table(data, col_widths):
+            """Helper to create a table with header styling, alternate rows, and padding."""
+            tbl = Table(data, colWidths=col_widths, repeatRows=1)
+            tbl.setStyle(TableStyle([
+                # Header row
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2E86AB")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+                # Body rows
+                ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F4F4F4"), colors.white]),
+                ("ALIGN", (0, 1), (-1, -1), "LEFT"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 10),
+                # Grid & padding
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            return tbl
+
         elements = []
-        
-        # Add farm information
-        elements.append(Paragraph(f"Farm Information", styles['Heading1']))
+
+        # --- Farm Information ---
+        elements.append(Paragraph("Farm Information", styles["Heading1"]))
         elements.append(Spacer(1, 12))
-        
         farm_data = [
-            ["Farm Name:", farm.name],
-            ["Size:", str(farm.size)],
-            ["Plant Type:", farm.plant_type],
-            ["Created At:", farm.created_at.strftime("%Y-%m-%d %H:%M:%S")],
-            ["User:", farm.user.name]
+            ["Field", "Value"],
+            ["Farm Name", farm.name],
+            ["Size", f"{farm.size}"],
+            ["Plant Type", farm.plant_type],
+            ["Created At", farm.created_at.strftime("%Y-%m-%d %H:%M:%S")],
+            ["User", farm.user.name],
         ]
-        
-        farm_table = Table(farm_data, colWidths=[100, 400])
-        farm_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
-            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('BACKGROUND', (1, 0), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black)
-        ]))
-        
-        elements.append(farm_table)
+        elements.append(styled_table(farm_data, col_widths=[120, 380]))
         elements.append(Spacer(1, 20))
-        
-        # Add boundary points
-        elements.append(Paragraph("Boundary Points", styles['Heading2']))
-        elements.append(Spacer(1, 12))
-        
+
+        # --- Boundary Points ---
+        elements.append(Paragraph("Boundary Points", styles["SectionHeading"]))
+        elements.append(Spacer(1, 6))
         boundary_data = [["Latitude", "Longitude", "Description", "Timestamp"]]
         for bp in farm.boundary_points.all():
             boundary_data.append([
-                str(bp.latitude),
-                str(bp.longitude),
-                bp.description or "",
-                bp.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                f"{bp.latitude:.6f}",
+                f"{bp.longitude:.6f}",
+                bp.description or "—",
+                bp.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             ])
-        
-        if len(boundary_data) > 1:  # If there are boundary points
-            boundary_table = Table(boundary_data, colWidths=[100, 100, 200, 150])
-            boundary_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            elements.append(boundary_table)
+        if len(boundary_data) > 1:
+            elements.append(styled_table(boundary_data, col_widths=[100, 100, 240, 160]))
         else:
-            elements.append(Paragraph("No boundary points found.", styles['Normal']))
-        
+            elements.append(Paragraph("No boundary points found.", styles["CustomBody"]))
         elements.append(Spacer(1, 20))
-        
-        # Add observation points
-        elements.append(Paragraph("Observation Points", styles['Heading2']))
-        elements.append(Spacer(1, 12))
-        
-        observation_data = [["Latitude", "Longitude", "Status", "Name", "Segment", "Confidence", "Target"]]
+
+        # --- Observation Points ---
+        elements.append(Paragraph("Observation Points", styles["SectionHeading"]))
+        elements.append(Spacer(1, 6))
+        obs_data = [["Latitude", "Longitude", "Status", "Name", "Segment", "Confidence", "Target"]]
         for op in farm.observation_points.all():
-            observation_data.append([
-                str(op.latitude),
-                str(op.longitude),
+            obs_data.append([
+                f"{op.latitude:.6f}",
+                f"{op.longitude:.6f}",
                 op.observation_status,
-                op.name or "",
+                op.name or "—",
                 str(op.segment),
-                op.confidence_level or "",
-                op.target_entity or ""
+                str(op.confidence_level or "—"),
+                op.target_entity or "—",
             ])
-        
-        if len(observation_data) > 1:  # If there are observation points
-            observation_table = Table(observation_data, colWidths=[80, 80, 80, 100, 60, 80, 100])
-            observation_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            elements.append(observation_table)
+        if len(obs_data) > 1:
+            elements.append(styled_table(obs_data, col_widths=[80, 80, 80, 100, 60, 80, 100]))
         else:
-            elements.append(Paragraph("No observation points found.", styles['Normal']))
-        
+            elements.append(Paragraph("No observation points found.", styles["CustomBody"]))
         elements.append(Spacer(1, 20))
-        
-        # Add inspection suggestions
-        elements.append(Paragraph("Inspection Suggestions", styles['Heading2']))
-        elements.append(Spacer(1, 12))
-        
-        suggestion_data = [["Target Entity", "Confidence Level", "Area Size", "Density of Plant", "Created At"]]
-        for suggestion in farm.inspection_suggestions.all():
-            suggestion_data.append([
-                suggestion.target_entity,
-                suggestion.confidence_level,
-                str(suggestion.area_size),
-                str(suggestion.density_of_plant),
-                suggestion.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # --- Inspection Suggestions ---
+        elements.append(Paragraph("Inspection Suggestions", styles["SectionHeading"]))
+        elements.append(Spacer(1, 6))
+        sug_data = [["Target", "Confidence", "Area Size", "Density", "Created At"]]
+        for s in farm.inspection_suggestions.all():
+            sug_data.append([
+                s.target_entity,
+                str(s.confidence_level),
+                f"{s.area_size}",
+                f"{s.density_of_plant}",
+                s.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             ])
-        
-        if len(suggestion_data) > 1:  # If there are inspection suggestions
-            suggestion_table = Table(suggestion_data, colWidths=[120, 100, 80, 100, 150])
-            suggestion_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            elements.append(suggestion_table)
+        if len(sug_data) > 1:
+            elements.append(styled_table(sug_data, col_widths=[120, 100, 80, 100, 150]))
         else:
-            elements.append(Paragraph("No inspection suggestions found.", styles['Normal']))
-        
+            elements.append(Paragraph("No inspection suggestions found.", styles["CustomBody"]))
         elements.append(Spacer(1, 20))
-        
-        # Add inspection observations
-        elements.append(Paragraph("Inspection Observations", styles['Heading2']))
-        elements.append(Spacer(1, 12))
-        
-        observation_data = [["Date", "Confidence", "Status", "Target Entity", "Severity"]]
-        for observation in farm.observations.all():
-            observation_data.append([
-                observation.date.strftime("%Y-%m-%d %H:%M:%S"),
-                observation.confidence,
-                observation.status,
-                observation.target_entity or "",
-                observation.severity or ""
+
+        # --- Inspection Observations ---
+        elements.append(Paragraph("Inspection Observations", styles["SectionHeading"]))
+        elements.append(Spacer(1, 6))
+        insp_data = [["Date", "Confidence", "Status", "Target", "Severity"]]
+        for o in farm.observations.all():
+            insp_data.append([
+                o.date.strftime("%Y-%m-%d %H:%M:%S"),
+                str(o.confidence),
+                o.status,
+                o.target_entity or "—",
+                o.severity or "—",
             ])
-        
-        if len(observation_data) > 1:  # If there are inspection observations
-            observation_table = Table(observation_data, colWidths=[150, 80, 80, 120, 80])
-            observation_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            elements.append(observation_table)
+        if len(insp_data) > 1:
+            elements.append(styled_table(insp_data, col_widths=[150, 80, 80, 120, 80]))
         else:
-            elements.append(Paragraph("No inspection observations found.", styles['Normal']))
-        
-        # Build the PDF
+            elements.append(Paragraph("No inspection observations found.", styles["CustomBody"]))
+
+        # Build PDF
         doc.build(elements)
-        
-        # Get the value of the BytesIO buffer and write it to the response
+
+        # Return as response
         pdf = buffer.getvalue()
         buffer.close()
-        
-        # Create the HttpResponse object with PDF header
-        response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="farm_{farm.name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+        response = HttpResponse(content_type="application/pdf")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        response["Content-Disposition"] = f'attachment; filename="farm_{farm.name}_{timestamp}.pdf"'
         response.write(pdf)
-        
         return response
     
     def change_view(self, request, object_id, form_url='', extra_context=None):
