@@ -11,6 +11,9 @@ class Farm(models.Model):
     plant_type = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='farms')
+    
+    def __str__(self):
+        return f"{self.name} - {self.plant_type}"
 
 class BoundaryPoint(models.Model):
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='boundary_points')
@@ -18,6 +21,10 @@ class BoundaryPoint(models.Model):
     longitude = models.FloatField()
     description = models.CharField(max_length=255, blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        desc = self.description if self.description else f"Point at {self.latitude:.4f}, {self.longitude:.4f}"
+        return f"Boundary Point - {desc} - {self.farm}"
 
 class ObservationPoint(models.Model):
     farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='observation_points')
@@ -103,3 +110,7 @@ class InspectionObservation(models.Model):
     severity = models.CharField(max_length=50, blank=True, null=True)
     image = models.ImageField(upload_to='inspection_images/', blank=True, null=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='observations')
+    
+    def __str__(self):
+        target = self.target_entity if self.target_entity else "Unknown"
+        return f"Observation - {target} - {self.status} - {self.farm}"

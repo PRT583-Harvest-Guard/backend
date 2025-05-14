@@ -31,16 +31,17 @@ class ObservationPointAdmin(admin.ModelAdmin):
 
 @admin.register(InspectionSuggestion)
 class InspectionSuggestionAdmin(admin.ModelAdmin):
-    list_display = ('target_entity', 'confidence_level', 'created_at')
-    list_filter = ('target_entity',)
-    search_fields = ('target_entity',)
+    list_display = ('target_entity', 'confidence_level', 'property_location', 'area_size', 'density_of_plant', 'user', 'created_at')
+    list_filter = ('confidence_level', 'property_location', 'user')
+    search_fields = ('target_entity', 'property_location__name', 'user__name')
     ordering = ('-created_at',)
     list_per_page = 20
 
 
 @admin.register(InspectionObservation)
 class InspectionObservationAdmin(admin.ModelAdmin):
-    list_display = ('created_at', )
-    search_fields = ('observation_point__name',)
+    list_display = ('target_entity', 'status', 'farm', 'confidence', 'severity', 'date', 'created_at')
+    list_filter = ('status', 'confidence', 'severity', 'farm')
+    search_fields = ('target_entity', 'farm__name')
     ordering = ('-created_at',)
     list_per_page = 20
