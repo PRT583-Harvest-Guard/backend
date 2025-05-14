@@ -23,9 +23,7 @@ from rest_framework.routers import DefaultRouter
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/profile/", include("accounts.urls"), name="profile"),
-    path("api/accounts/", include("djoser.urls"), name="accounts"),
-    path("api/accounts/", include("djoser.urls.jwt"), name="jwt"),
+    path("api/auth/", include("accounts.urls"), name="auth"),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
