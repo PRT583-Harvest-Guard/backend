@@ -38,6 +38,7 @@ class ObservationPoint(models.Model):
                                              related_name='observation_points', null=True, blank=True)
     confidence_level = models.CharField(max_length=50, blank=True, null=True)
     target_entity = models.CharField(max_length=255, blank=True, null=True)
+    image = models.ImageField(upload_to='observation_images/', null=False, blank=False)
 
     # Sync-related fields
     mobile_id = models.IntegerField(unique=True, null=True, blank=True)

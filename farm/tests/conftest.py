@@ -87,6 +87,7 @@ class ObservationPointFactory(factory.django.DjangoModelFactory):
     mobile_id = factory.Sequence(lambda n: n)
     last_synced = factory.LazyFunction(timezone.now)
     sync_status = 'synced'
+    image = factory.django.ImageField(color='blue')
 
 
 class InspectionObservationFactory(factory.django.DjangoModelFactory):

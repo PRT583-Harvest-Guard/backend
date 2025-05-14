@@ -22,6 +22,7 @@ class TestObservationPointModel:
         assert observation_point.inspection_suggestion is not None
         assert observation_point.confidence_level is not None
         assert observation_point.target_entity is not None
+        assert observation_point.image is not None
 
     def test_observation_point_string_representation(self, observation_point):
         """Test the string representation of an observation point."""
@@ -48,6 +49,7 @@ class TestObservationPointViewSet:
         assert response.data[0]['inspection_suggestion'] == observation_point.inspection_suggestion.id
         assert response.data[0]['confidence_level'] == observation_point.confidence_level
         assert response.data[0]['target_entity'] == observation_point.target_entity
+        assert 'image' in response.data[0]
     
     def test_list_observation_points_unauthenticated(self, api_client, observation_points_url):
         """Test listing observation points when unauthenticated."""
@@ -58,6 +60,16 @@ class TestObservationPointViewSet:
     def test_create_observation_point_authenticated(self, authenticated_client, observation_points_url, farm, inspection_suggestion):
         """Test creating an observation point when authenticated."""
         client, user = authenticated_client
+        
+        # Create a simple test image
+        import tempfile
+        from PIL import Image
+        
+        # Create a temporary image file
+        image = Image.new('RGB', (100, 100), color='blue')
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
+        image.save(tmp_file)
+        tmp_file.seek(0)
         
         data = {
             'farm': farm.id,
@@ -73,8 +85,9 @@ class TestObservationPointViewSet:
         
         response = client.post(
             observation_points_url,
-            data=json.dumps(data),
-            content_type='application/json'
+            data=data,
+            format='multipart',
+            files={'image': tmp_file}
         )
         
         assert response.status_code == status.HTTP_201_CREATED
@@ -93,6 +106,16 @@ class TestObservationPointViewSet:
     
     def test_create_observation_point_unauthenticated(self, api_client, observation_points_url, farm, inspection_suggestion):
         """Test creating an observation point when unauthenticated."""
+        # Create a simple test image
+        import tempfile
+        from PIL import Image
+        
+        # Create a temporary image file
+        image = Image.new('RGB', (100, 100), color='blue')
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
+        image.save(tmp_file)
+        tmp_file.seek(0)
+        
         data = {
             'farm': farm.id,
             'latitude': 37.7749,
@@ -107,8 +130,9 @@ class TestObservationPointViewSet:
         
         response = api_client.post(
             observation_points_url,
-            data=json.dumps(data),
-            content_type='application/json'
+            data=data,
+            format='multipart',
+            files={'image': tmp_file}
         )
         
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
@@ -132,6 +156,7 @@ class TestObservationPointViewSet:
         assert response.data['inspection_suggestion'] == observation_point.inspection_suggestion.id
         assert response.data['confidence_level'] == observation_point.confidence_level
         assert response.data['target_entity'] == observation_point.target_entity
+        assert 'image' in response.data
     
     def test_retrieve_observation_point_unauthenticated(self, api_client, observation_point_detail_url):
         """Test retrieving an observation point when unauthenticated."""
@@ -142,6 +167,16 @@ class TestObservationPointViewSet:
     def test_update_observation_point_authenticated(self, authenticated_client, observation_point_detail_url, observation_point):
         """Test updating an observation point when authenticated."""
         client, user = authenticated_client
+        
+        # Create a simple test image
+        import tempfile
+        from PIL import Image
+        
+        # Create a temporary image file
+        image = Image.new('RGB', (100, 100), color='red')
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
+        image.save(tmp_file)
+        tmp_file.seek(0)
         
         data = {
             'farm': observation_point.farm.id,
@@ -157,8 +192,9 @@ class TestObservationPointViewSet:
         
         response = client.put(
             observation_point_detail_url,
-            data=json.dumps(data),
-            content_type='application/json'
+            data=data,
+            format='multipart',
+            files={'image': tmp_file}
         )
         
         assert response.status_code == status.HTTP_200_OK
@@ -184,6 +220,16 @@ class TestObservationPointViewSet:
     
     def test_update_observation_point_unauthenticated(self, api_client, observation_point_detail_url, observation_point):
         """Test updating an observation point when unauthenticated."""
+        # Create a simple test image
+        import tempfile
+        from PIL import Image
+        
+        # Create a temporary image file
+        image = Image.new('RGB', (100, 100), color='red')
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.jpg')
+        image.save(tmp_file)
+        tmp_file.seek(0)
+        
         data = {
             'farm': observation_point.farm.id,
             'latitude': 34.0522,
@@ -198,8 +244,9 @@ class TestObservationPointViewSet:
         
         response = api_client.put(
             observation_point_detail_url,
-            data=json.dumps(data),
-            content_type='application/json'
+            data=data,
+            format='multipart',
+            files={'image': tmp_file}
         )
         
         assert response.status_code == status.HTTP_401_UNAUTHORIZED

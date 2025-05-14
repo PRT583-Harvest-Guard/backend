@@ -56,3 +56,4 @@ Thumbs.db
 
 # Project specific
 postgres_data/
+observation_images/

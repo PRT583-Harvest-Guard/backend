@@ -21,9 +21,18 @@ class BoundaryPointInline(admin.TabularInline):
 class ObservationPointInline(admin.TabularInline):
     model = ObservationPoint
     extra = 0
-    fields = ('latitude', 'longitude', 'observation_status', 'name', 'segment', 'confidence_level', 'target_entity')
+    fields = ('latitude', 'longitude', 'observation_status', 'name', 'segment', 'confidence_level', 'target_entity', 'image', 'image_preview')
+    readonly_fields = ('image_preview',)
     can_delete = True
     show_change_link = True
+    
+    def image_preview(self, obj):
+        """Generate a thumbnail preview of the image."""
+        if obj.image:
+            return format_html('<img src="{}" width="100" height="100" style="object-fit: cover;" />', obj.image.url)
+        return "No Image"
+    
+    image_preview.short_description = 'Image Preview'
 
 class InspectionSuggestionInline(admin.TabularInline):
     model = InspectionSuggestion
@@ -252,25 +261,25 @@ class BoundaryPointAdmin(admin.ModelAdmin):
 
 @admin.register(ObservationPoint)
 class ObservationPointAdmin(admin.ModelAdmin):
-    list_display = ('farm', 'latitude', 'longitude', 'observation_status', 'name', 'segment', 'created_at')
+    list_display = ('farm', 'latitude', 'longitude', 'observation_status', 'name', 'segment', 'created_at', 'image_preview')
     list_filter = ('farm', 'observation_status', 'segment')
     search_fields = ('farm__name', 'name')
     ordering = ('-created_at',)
     list_per_page = 20
+    readonly_fields = ('image_preview',)
+    
+    def image_preview(self, obj):
+        """Generate a thumbnail preview of the image."""
+        if obj.image:
+            return format_html('<img src="{}" width="100" height="100" style="object-fit: cover;" />', obj.image.url)
+        return "No Image"
+    
+    image_preview.short_description = 'Image Preview'
 
 @admin.register(InspectionSuggestion)
 class InspectionSuggestionAdmin(admin.ModelAdmin):
     list_display = ('target_entity', 'confidence_level', 'property_location', 'area_size', 'density_of_plant', 'user', 'created_at')
     list_filter = ('confidence_level', 'property_location', 'user')
     search_fields = ('target_entity', 'property_location__name', 'user__name')
-    ordering = ('-created_at',)
-    list_per_page = 20
-
-
-@admin.register(InspectionObservation)
-class InspectionObservationAdmin(admin.ModelAdmin):
-    list_display = ('target_entity', 'status', 'farm', 'confidence', 'severity', 'date', 'created_at')
-    list_filter = ('status', 'confidence', 'severity', 'farm')
-    search_fields = ('target_entity', 'farm__name')
     ordering = ('-created_at',)
     list_per_page = 20
