@@ -5,7 +5,7 @@
     {{ block.super }}
     {% if show_export_button %}
     <li>
-        <a href="{{ export_url }}" class="historylink">{% trans "Export Farm Documents" %}</a>
+        <a href="{% url 'admin:farm-export-documents' object_id %}" class="historylink">{% trans "Export Farm Documents" %}</a>
     </li>
     {% endif %}
 {% endblock %}

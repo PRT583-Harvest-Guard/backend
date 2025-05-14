@@ -53,57 +53,195 @@ class FarmAdmin(admin.ModelAdmin):
         urls = super().get_urls()
         custom_urls = [
             path(
-                '<int:farm_id>/export-documents/',
+                '<path:object_id>/export-documents/',
                 self.admin_site.admin_view(self.export_farm_documents),
                 name='farm-export-documents',
             ),
         ]
         return custom_urls + urls
     
-    def export_farm_documents(self, request, farm_id):
-        """Export farm documents as CSV."""
-        farm = Farm.objects.get(pk=farm_id)
+    def export_farm_documents(self, request, object_id):
+        """Export farm documents as PDF."""
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from io import BytesIO
         
-        # Create the HttpResponse object with CSV header
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="farm_{farm.name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        farm = Farm.objects.get(pk=object_id)
         
-        writer = csv.writer(response)
-        writer.writerow(['Farm Information'])
-        writer.writerow(['Name', 'Size', 'Plant Type', 'Created At', 'User'])
-        writer.writerow([farm.name, farm.size, farm.plant_type, farm.created_at, farm.user.name])
+        # Create a file-like buffer to receive PDF data
+        buffer = BytesIO()
         
-        writer.writerow([])  # Empty row for separation
+        # Create the PDF object, using the buffer as its "file"
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+        
+        # Get the default style sheet
+        styles = getSampleStyleSheet()
+        
+        # Create a list to store the flowables
+        elements = []
+        
+        # Add farm information
+        elements.append(Paragraph(f"Farm Information", styles['Heading1']))
+        elements.append(Spacer(1, 12))
+        
+        farm_data = [
+            ["Farm Name:", farm.name],
+            ["Size:", str(farm.size)],
+            ["Plant Type:", farm.plant_type],
+            ["Created At:", farm.created_at.strftime("%Y-%m-%d %H:%M:%S")],
+            ["User:", farm.user.name]
+        ]
+        
+        farm_table = Table(farm_data, colWidths=[100, 400])
+        farm_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('BACKGROUND', (1, 0), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(farm_table)
+        elements.append(Spacer(1, 20))
         
         # Add boundary points
-        writer.writerow(['Boundary Points'])
-        writer.writerow(['Latitude', 'Longitude', 'Description', 'Timestamp'])
-        for bp in farm.boundary_points.all():
-            writer.writerow([bp.latitude, bp.longitude, bp.description, bp.timestamp])
+        elements.append(Paragraph("Boundary Points", styles['Heading2']))
+        elements.append(Spacer(1, 12))
         
-        writer.writerow([])  # Empty row for separation
+        boundary_data = [["Latitude", "Longitude", "Description", "Timestamp"]]
+        for bp in farm.boundary_points.all():
+            boundary_data.append([
+                str(bp.latitude),
+                str(bp.longitude),
+                bp.description or "",
+                bp.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            ])
+        
+        if len(boundary_data) > 1:  # If there are boundary points
+            boundary_table = Table(boundary_data, colWidths=[100, 100, 200, 150])
+            boundary_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(boundary_table)
+        else:
+            elements.append(Paragraph("No boundary points found.", styles['Normal']))
+        
+        elements.append(Spacer(1, 20))
         
         # Add observation points
-        writer.writerow(['Observation Points'])
-        writer.writerow(['Latitude', 'Longitude', 'Status', 'Name', 'Segment', 'Created At'])
-        for op in farm.observation_points.all():
-            writer.writerow([op.latitude, op.longitude, op.observation_status, op.name, op.segment, op.created_at])
+        elements.append(Paragraph("Observation Points", styles['Heading2']))
+        elements.append(Spacer(1, 12))
         
-        writer.writerow([])  # Empty row for separation
+        observation_data = [["Latitude", "Longitude", "Status", "Name", "Segment", "Confidence", "Target"]]
+        for op in farm.observation_points.all():
+            observation_data.append([
+                str(op.latitude),
+                str(op.longitude),
+                op.observation_status,
+                op.name or "",
+                str(op.segment),
+                op.confidence_level or "",
+                op.target_entity or ""
+            ])
+        
+        if len(observation_data) > 1:  # If there are observation points
+            observation_table = Table(observation_data, colWidths=[80, 80, 80, 100, 60, 80, 100])
+            observation_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(observation_table)
+        else:
+            elements.append(Paragraph("No observation points found.", styles['Normal']))
+        
+        elements.append(Spacer(1, 20))
         
         # Add inspection suggestions
-        writer.writerow(['Inspection Suggestions'])
-        writer.writerow(['Target Entity', 'Confidence Level', 'Area Size', 'Density of Plant', 'Created At'])
-        for suggestion in farm.inspection_suggestions.all():
-            writer.writerow([suggestion.target_entity, suggestion.confidence_level, suggestion.area_size, suggestion.density_of_plant, suggestion.created_at])
+        elements.append(Paragraph("Inspection Suggestions", styles['Heading2']))
+        elements.append(Spacer(1, 12))
         
-        writer.writerow([])  # Empty row for separation
+        suggestion_data = [["Target Entity", "Confidence Level", "Area Size", "Density of Plant", "Created At"]]
+        for suggestion in farm.inspection_suggestions.all():
+            suggestion_data.append([
+                suggestion.target_entity,
+                suggestion.confidence_level,
+                str(suggestion.area_size),
+                str(suggestion.density_of_plant),
+                suggestion.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            ])
+        
+        if len(suggestion_data) > 1:  # If there are inspection suggestions
+            suggestion_table = Table(suggestion_data, colWidths=[120, 100, 80, 100, 150])
+            suggestion_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(suggestion_table)
+        else:
+            elements.append(Paragraph("No inspection suggestions found.", styles['Normal']))
+        
+        elements.append(Spacer(1, 20))
         
         # Add inspection observations
-        writer.writerow(['Inspection Observations'])
-        writer.writerow(['Date', 'Confidence', 'Status', 'Target Entity', 'Severity', 'Created At'])
+        elements.append(Paragraph("Inspection Observations", styles['Heading2']))
+        elements.append(Spacer(1, 12))
+        
+        observation_data = [["Date", "Confidence", "Status", "Target Entity", "Severity"]]
         for observation in farm.observations.all():
-            writer.writerow([observation.date, observation.confidence, observation.status, observation.target_entity, observation.severity, observation.created_at])
+            observation_data.append([
+                observation.date.strftime("%Y-%m-%d %H:%M:%S"),
+                observation.confidence,
+                observation.status,
+                observation.target_entity or "",
+                observation.severity or ""
+            ])
+        
+        if len(observation_data) > 1:  # If there are inspection observations
+            observation_table = Table(observation_data, colWidths=[150, 80, 80, 120, 80])
+            observation_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            elements.append(observation_table)
+        else:
+            elements.append(Paragraph("No inspection observations found.", styles['Normal']))
+        
+        # Build the PDF
+        doc.build(elements)
+        
+        # Get the value of the BytesIO buffer and write it to the response
+        pdf = buffer.getvalue()
+        buffer.close()
+        
+        # Create the HttpResponse object with PDF header
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="farm_{farm.name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+        response.write(pdf)
         
         return response
     
@@ -111,7 +249,7 @@ class FarmAdmin(admin.ModelAdmin):
         """Override change_view to add export button."""
         extra_context = extra_context or {}
         extra_context['show_export_button'] = True
-        extra_context['export_url'] = f'../../../farm/farm/{object_id}/export-documents/'
+        extra_context['export_url'] = f'{object_id}/export-documents/'
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
 @admin.register(BoundaryPoint)
