@@ -242,8 +242,46 @@ The mobile app can securely store tokens and refresh them in the background when
 
 ## Testing
 
+### Django Test Suite
+
 Unit tests are provided for all endpoints in `accounts/tests.py`. Run them with:
 
 ```bash
 python manage.py test accounts
+```
+
+### Pytest Test Suite
+
+A comprehensive pytest test suite is also available in the `accounts/tests/` directory. The test suite includes:
+
+- Unit tests for all endpoints
+- Test fixtures for creating test data
+- Test coverage reporting
+
+To run the pytest test suite:
+
+```bash
+# Make sure the script is executable
+chmod +x run_tests.sh
+
+# Run the tests
+./run_tests.sh
+```
+
+Or run pytest directly:
+
+```bash
+python -m pytest accounts/tests/ -v --cov=accounts --cov-report=term-missing
+```
+
+You can also run specific test files:
+
+```bash
+python -m pytest accounts/tests/test_register.py -v
+```
+
+Or run tests with specific markers:
+
+```bash
+python -m pytest accounts/tests/ -v -m "auth"
 ```
