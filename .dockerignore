@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+env/
+
+# Django migrations
+*/migrations/__pycache__/
+*/migrations/*.pyc
+
+# IDE/editor settings
+*.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Docker-related
+Dockerfile
+docker-compose.yml
+.dockerignore
