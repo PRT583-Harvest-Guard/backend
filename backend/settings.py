@@ -10,8 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
+from decouple import config, Csv
+import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,10 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-bvt+00d-l8(it!mql)=sxe1$01j4_k5q27=@96f-po&@n+nnh4"
+SECRET_KEY = config("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config("DEBUG", default=False, cast=bool)
 # Application definition
 
 INSTALLED_APPS = [
@@ -43,7 +47,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "djoser",
     "drf_spectacular",
-    'phonenumber_field',
+    "phonenumber_field",
 ]
 
 REST_FRAMEWORK = {
@@ -79,27 +83,27 @@ SIMPLE_JWT = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Harvest Guard API',
-    'DESCRIPTION': 'PRT583 PROCESS DEVELOPMENT METHODOLOGIES',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    "TITLE": "Harvest Guard API",
+    "DESCRIPTION": "PRT583 PROCESS DEVELOPMENT METHODOLOGIES",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
     # OTHER SETTINGS
 }
 
 DJOSER = {
-    'LOGIN_FIELD': 'phone_number',
-    'USER_CREATE_PASSWORD_RETYPE': True,
-    'USERNAME_CHANGED_EMAIL_CONFIRMATION': True,
-    'PASSWORD_CHANGED_EMAIL_CONFIRMATION': True,
-    'SET_PASSWORD_RETYPE': True,
-    'SET_USERNAME_RETYPE': True,
-    'PASSWORD_RESET_CONFIRM_URL': 'password-reset-confirm/{uid}/{token}',
-    'USERNAME_RESET_CONFIRM_URL': 'email/password-reset-confirm/{uid}/{token}',
-    'ACTIVATION_URL': 'activate/{uid}/{token}',
-    'SERIALIZERS': {
-        'user_create': 'accounts.serializers.UserCreateSerializer',
-        'user': 'accounts.serializers.UserCreateSerializer',
-        'user_delete': 'djoser.serializers.UserDeleteSerializer',
+    "LOGIN_FIELD": "phone_number",
+    "USER_CREATE_PASSWORD_RETYPE": True,
+    "USERNAME_CHANGED_EMAIL_CONFIRMATION": True,
+    "PASSWORD_CHANGED_EMAIL_CONFIRMATION": True,
+    "SET_PASSWORD_RETYPE": True,
+    "SET_USERNAME_RETYPE": True,
+    "PASSWORD_RESET_CONFIRM_URL": "password-reset-confirm/{uid}/{token}",
+    "USERNAME_RESET_CONFIRM_URL": "email/password-reset-confirm/{uid}/{token}",
+    "ACTIVATION_URL": "activate/{uid}/{token}",
+    "SERIALIZERS": {
+        "user_create": "accounts.serializers.UserCreateSerializer",
+        "user": "accounts.serializers.UserCreateSerializer",
+        "user_delete": "djoser.serializers.UserDeleteSerializer",
     },
 }
 
@@ -119,7 +123,7 @@ ROOT_URLCONF = "backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / 'farm' / 'templates'],
+        "DIRS": [BASE_DIR / "farm" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -134,14 +138,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.wsgi.application"
 
-ALLOWED_HOSTS = ['192.168.0.61', '0.0.0.0', 'localhost', '192.168.0.152']
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=Csv())
 
 # Allow requests from the mobile app
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # For development
-    "https://harvestguard.com",  # Production domain
-    "http://localhost:19006",  # React Native Expo
-]
+CORS_ALLOW_ALL_ORIGINS = config("CORS_ALLOW_ALL_ORIGINS", default=False, cast=bool)
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",  # For development
+#     "https://harvestguard.com",  # Production domain
+#     "http://localhost:19006",  # React Native Expo
+# ]
 
 CORS_ALLOW_METHODS = [
     "DELETE",
@@ -167,30 +172,8 @@ CORS_ALLOW_HEADERS = [
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-import os
-
-# Use the DATABASE_URL environment variable if available, otherwise use default PostgreSQL settings
-DATABASE_URL = os.environ.get('DATABASE_URL')
-
-if DATABASE_URL:
-    # Parse the DATABASE_URL
-    import dj_database_url
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL)
-    }
-else:
-    # Use the PostgreSQL settings from docker-compose.yml
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'backend',
-            'USER': 'postgres',
-            'PASSWORD': 'postgres',
-            'HOST': 'db',  # This should match the service name in docker-compose.yml
-            'PORT': '5432',
-        }
-    }
-
+# Use the DATABASE_URL environment variable
+DATABASES = {"default": dj_database_url.parse(config("DATABASE_URL"))}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -203,7 +186,7 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {
             "min_length": 6,
-        }
+        },
     },
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
@@ -237,56 +220,56 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = "accounts.User"
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 DATA_UPLOAD_MAX_NUMBER_FILES = None
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your_email@gmail.com'
-EMAIL_HOST_PASSWORD = 'your_email_password'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = config("EMAIL_HOST")
+EMAIL_PORT = config("EMAIL_PORT", cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
 
 
 # Logging configuration
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'logs/django.log'),
-            'formatter': 'verbose',
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': True,
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
-        'api': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': True,
+        "file": {
+            "level": "INFO",
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "logs/django.log"),
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "api": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": True,
         },
     },
 }
