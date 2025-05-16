@@ -33,8 +33,10 @@ jobs:
 
       # 2. write .env file
       - name: Reconstruct .env
-        run: echo "${{ secrets.ENV_FILE }}" > .env
-
+        run: |
+          cat > .env <<EOF
+          ${{ secrets.ENV_FILE }}
+          EOF
       # # run unit tests
       # - name: Set up Python & run tests
       #   uses: actions/setup-python@v5
