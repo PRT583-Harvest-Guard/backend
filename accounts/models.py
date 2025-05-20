@@ -39,7 +39,7 @@ class User(AbstractUser, PermissionsMixin):
     # fields
     email = models.EmailField(_('email address'),blank=True, null=True, unique=True)
     name = models.CharField(_('name'), max_length=255)
-    phone_number = PhoneNumberField(unique=True, null=False, blank=False)
+    phone_number = models.CharField(_('phone number'), max_length=20, unique=True)
     role = models.CharField(_('role'), max_length=255, choices=ROLE_CHOICES, default='farmer')
     address = models.CharField(_('address'), max_length=255, blank=True)
     bio = models.TextField(_('bio'), blank=True)
