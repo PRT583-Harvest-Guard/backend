@@ -7,6 +7,10 @@ from django.utils.html import format_html
 from farm.models import Farm, BoundaryPoint, ObservationPoint, InspectionSuggestion, InspectionObservation
 import csv
 from datetime import datetime
+import requests
+from PIL import Image, ImageDraw
+import tempfile
+import os
 
 
 # Register your models here.
@@ -73,8 +77,6 @@ class FarmAdmin(admin.ModelAdmin):
         """Export farm documents as PDF."""
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import letter, landscape
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import letter, landscape
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.enums import TA_CENTER, TA_LEFT
         from reportlab.platypus import (
@@ -83,6 +85,7 @@ class FarmAdmin(admin.ModelAdmin):
             TableStyle,
             Paragraph,
             Spacer,
+            Image as ReportLabImage,
         )
         from io import BytesIO
         
@@ -143,6 +146,95 @@ class FarmAdmin(admin.ModelAdmin):
             ]))
             return tbl
 
+        def generate_satellite_map(boundary_points, observation_points):
+            """Generate a satellite map image with farm boundary and observation points overlay."""
+            if not boundary_points:
+                return None
+            
+            try:
+                # Calculate bounding box including both boundary and observation points
+                all_lats = [bp.latitude for bp in boundary_points]
+                all_lons = [bp.longitude for bp in boundary_points]
+                
+                # Add observation points to bounding box calculation
+                if observation_points:
+                    all_lats.extend([op.latitude for op in observation_points])
+                    all_lons.extend([op.longitude for op in observation_points])
+                
+                min_lat, max_lat = min(all_lats), max(all_lats)
+                min_lon, max_lon = min(all_lons), max(all_lons)
+                
+                # Add padding to the bounding box
+                lat_padding = (max_lat - min_lat) * 0.1 if max_lat != min_lat else 0.001
+                lon_padding = (max_lon - min_lon) * 0.1 if max_lon != min_lon else 0.001
+                
+                min_lat -= lat_padding
+                max_lat += lat_padding
+                min_lon -= lon_padding
+                max_lon += lon_padding
+                
+                # Calculate center point
+                center_lat = (min_lat + max_lat) / 2
+                center_lon = (min_lon + max_lon) / 2
+                
+                # Create a simple visualization using PIL
+                img_width, img_height = 600, 400
+                img = Image.new('RGB', (img_width, img_height), color='lightblue')
+                draw = ImageDraw.Draw(img)
+                
+                # Convert lat/lon to pixel coordinates
+                def lat_lon_to_pixel(lat, lon):
+                    x = int((lon - min_lon) / (max_lon - min_lon) * img_width)
+                    y = int((max_lat - lat) / (max_lat - min_lat) * img_height)
+                    return x, y
+                
+                # Add a simple grid to make it look more map-like
+                for i in range(0, img_width, 50):
+                    draw.line([(i, 0), (i, img_height)], fill=(200, 200, 200, 50))
+                for i in range(0, img_height, 50):
+                    draw.line([(0, i), (img_width, i)], fill=(200, 200, 200, 50))
+                
+                # Draw boundary polygon
+                if len(boundary_points) >= 3:
+                    polygon_points = []
+                    for bp in boundary_points:
+                        x, y = lat_lon_to_pixel(bp.latitude, bp.longitude)
+                        polygon_points.append((x, y))
+                    
+                    # Close the polygon
+                    polygon_points.append(polygon_points[0])
+                    
+                    # Draw filled polygon with transparency effect
+                    draw.polygon(polygon_points, fill=(255, 255, 0, 100), outline=(255, 0, 0, 255))
+                
+                # Draw boundary points (red circles)
+                for bp in boundary_points:
+                    x, y = lat_lon_to_pixel(bp.latitude, bp.longitude)
+                    draw.ellipse([x-4, y-4, x+4, y+4], fill='red', outline='darkred', width=2)
+                
+                # Draw observation points (blue squares)
+                if observation_points:
+                    for op in observation_points:
+                        x, y = lat_lon_to_pixel(op.latitude, op.longitude)
+                        # Draw square for observation points
+                        draw.rectangle([x-4, y-4, x+4, y+4], fill='blue', outline='darkblue', width=2)
+                        
+                        # Add a small label if the observation point has a name
+                        if op.name:
+                            # Draw a small text label (simplified)
+                            draw.ellipse([x-1, y-1, x+1, y+1], fill='white')
+                
+                # Save to BytesIO buffer
+                img_buffer = BytesIO()
+                img.save(img_buffer, 'PNG')
+                img_buffer.seek(0)
+                
+                return img_buffer
+                
+            except Exception as e:
+                print(f"Error generating satellite map: {e}")
+                return None
+
         elements = []
 
         # --- Farm Information ---
@@ -194,6 +286,36 @@ class FarmAdmin(admin.ModelAdmin):
             elements.append(styled_table(obs_data, col_widths=[80, 80, 80, 100, 60, 80, 100]))
         else:
             elements.append(Paragraph("No observation points found.", styles["CustomBody"]))
+        elements.append(Spacer(1, 20))
+
+        # --- Farm Boundary Map ---
+        elements.append(Paragraph("Farm Boundary Satellite Map", styles["SectionHeading"]))
+        elements.append(Spacer(1, 6))
+        
+        boundary_points = list(farm.boundary_points.all())
+        observation_points = list(farm.observation_points.all())
+        
+        if boundary_points:
+            map_image_buffer = generate_satellite_map(boundary_points, observation_points)
+            if map_image_buffer:
+                try:
+                    # Add the satellite map image to the PDF
+                    map_img = ReportLabImage(map_image_buffer, width=500, height=333)
+                    elements.append(map_img)
+                    elements.append(Spacer(1, 10))
+                    
+                    # Create legend description
+                    legend_text = "Map shows farm boundary (red outline) with boundary points (red circles)"
+                    if observation_points:
+                        legend_text += " and observation points (blue squares)"
+                    legend_text += "."
+                    elements.append(Paragraph(legend_text, styles["CustomBody"]))
+                except Exception as e:
+                    elements.append(Paragraph(f"Error displaying satellite map: {str(e)}", styles["CustomBody"]))
+            else:
+                elements.append(Paragraph("Unable to generate satellite map.", styles["CustomBody"]))
+        else:
+            elements.append(Paragraph("No boundary points available for map generation.", styles["CustomBody"]))
         elements.append(Spacer(1, 20))
 
         # --- Inspection Suggestions ---
