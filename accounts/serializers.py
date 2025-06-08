@@ -301,10 +301,10 @@ class ChangePasswordSerializer(serializers.Serializer):
         if new_password != confirm_password:
             raise serializers.ValidationError({'confirm_password': _('Passwords do not match.')})
         
-        try:
-            validate_password(new_password, user=user)
-        except Exception as e:
-            raise serializers.ValidationError({'new_password': list(e)})
+        # try:
+        #     validate_password(new_password, user=user)
+        # except Exception as e:
+        #     raise serializers.ValidationError({'new_password': list(e)})
         
         return attrs
     

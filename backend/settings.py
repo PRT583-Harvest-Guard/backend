@@ -96,7 +96,7 @@ SPECTACULAR_SETTINGS = {
 
 DJOSER = {
     "LOGIN_FIELD": "phone_number",
-    "USER_CREATE_PASSWORD_RETYPE": True,
+    "USER_CREATE_PASSWORD_RETYPE": False,
     "USERNAME_CHANGED_EMAIL_CONFIRMATION": True,
     "PASSWORD_CHANGED_EMAIL_CONFIRMATION": True,
     "SET_PASSWORD_RETYPE": True,
@@ -184,21 +184,6 @@ DATABASES = {"default": dj_database_url.parse(config("DATABASE_URL"))}
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-        "OPTIONS": {
-            "min_length": 6,
-        },
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
 ]
 
 
