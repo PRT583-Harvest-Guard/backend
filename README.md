@@ -54,6 +54,14 @@ This project is a RESTful API built with Django and Django REST Framework that p
 
 4. **Run migrations**
 
+   add 
+   """
+      POSTGRES_USER=postgres
+      POSTGRES_PASSWORD=postgres
+      POSTGRES_DB=backend
+   """
+   to .env file
+
    ```bash
    docker-compose exec web python manage.py migrate
    ```
